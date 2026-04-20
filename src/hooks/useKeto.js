@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const KETO_API = import.meta.env.VITE_KETO_API || 'http://localhost:3001';
+// Em produção (Vercel) usa URL relativa — frontend e API estão na mesma origem
+// Em dev local precisa do backend rodando em localhost:3001
+const KETO_API = import.meta.env.VITE_KETO_API || '';
 
 /**
  * Busca portfolio de um endereço
