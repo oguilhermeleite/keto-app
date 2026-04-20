@@ -1,12 +1,12 @@
-import { getEVMPortfolio } from '../lib/alchemy.js';
-import { getSolanaPortfolio } from '../lib/helius.js';
-import { getBitcoinPortfolio } from '../lib/bitcoin.js';
+const { getEVMPortfolio } = require('../lib/alchemy');
+const { getSolanaPortfolio } = require('../lib/helius');
+const { getBitcoinPortfolio } = require('../lib/bitcoin');
 
 const isEVM     = (a) => /^0x[a-fA-F0-9]{40}$/.test(a);
 const isSolana  = (a) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
 const isBitcoin = (a) => /^(bc1[a-z0-9]{39,59}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(a);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { address } = req.query;
@@ -40,10 +40,10 @@ export default async function handler(req, res) {
   const allTokens = [], allNFTs = [];
 
   successful.forEach(chain => {
-    if (chain.native) {
+    if (chain.native && chain.native.amount > 0) {
       totalBRL += chain.native.valueBRL || 0;
       totalUSD += chain.native.valueUSD || 0;
-      if (chain.native.amount > 0) allTokens.push(chain.native);
+      allTokens.push(chain.native);
     }
     (chain.tokens || []).forEach(t => {
       totalBRL += t.valueBRL || 0;
@@ -61,4 +61,4 @@ export default async function handler(req, res) {
     errors,
     timestamp: new Date().toISOString(),
   });
-}
+};

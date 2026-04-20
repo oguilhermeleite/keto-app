@@ -1,8 +1,7 @@
-import { getPrices } from './prices.js';
+const { getPrices } = require('./prices');
 
-export async function getSolanaPortfolio(address) {
+async function getSolanaPortfolio(address) {
   const url = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
-
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -64,10 +63,11 @@ export async function getSolanaPortfolio(address) {
         name: content?.metadata?.name || 'Unnamed NFT',
         collection: item.grouping?.find(g => g.group_key === 'collection')?.group_value || 'Unknown',
         image: content?.links?.image || content?.files?.[0]?.uri || null,
-        description: content?.metadata?.description,
       });
     }
   }
 
   return { chain: 'solana', address, native, tokens, nfts };
 }
+
+module.exports = { getSolanaPortfolio };

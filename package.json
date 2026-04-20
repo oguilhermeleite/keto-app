@@ -2,7 +2,6 @@
   "name": "keto-app",
   "version": "1.0.0",
   "description": "Keto — Portfolio tracker cripto multi-chain. Frontend.",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

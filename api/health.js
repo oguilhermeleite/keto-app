@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.status(200).json({
     status: 'ok',
     name: 'Keto API',
@@ -9,4 +9,4 @@ export default function handler(req, res) {
     },
     timestamp: new Date().toISOString(),
   });
-}
+};
