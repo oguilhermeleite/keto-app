@@ -12,24 +12,31 @@ module.exports = async function handler(req, res) {
   const { address } = req.query;
   if (!address) return res.status(400).json({ error: 'Endereço obrigatório' });
 
+  const detected = {
+    isEVM: isEVM(address),
+    isSolana: isSolana(address),
+    isBitcoin: isBitcoin(address),
+    length: address.length,
+  };
+
   const tasks = [];
 
-  if (isEVM(address)) {
+  if (detected.isEVM) {
     ['ethereum', 'polygon', 'base', 'arbitrum', 'optimism'].forEach(chain => {
       tasks.push(getEVMPortfolio(chain, address).catch(e => ({ chain, error: e.message })));
     });
   }
 
-  if (isSolana(address)) {
+  if (detected.isSolana) {
     tasks.push(getSolanaPortfolio(address).catch(e => ({ chain: 'solana', error: e.message })));
   }
 
-  if (isBitcoin(address)) {
+  if (detected.isBitcoin) {
     tasks.push(getBitcoinPortfolio(address).catch(e => ({ chain: 'bitcoin', error: e.message })));
   }
 
   if (tasks.length === 0) {
-    return res.status(400).json({ error: 'Formato de endereço inválido', address });
+    return res.status(400).json({ error: 'Formato de endereço inválido', address, detected });
   }
 
   const results = await Promise.all(tasks);
@@ -55,6 +62,7 @@ module.exports = async function handler(req, res) {
 
   res.status(200).json({
     address,
+    detected,
     summary: { totalBRL, totalUSD, tokenCount: allTokens.length, nftCount: allNFTs.length },
     tokens: allTokens.sort((a, b) => (b.valueBRL || 0) - (a.valueBRL || 0)),
     nfts: allNFTs,
