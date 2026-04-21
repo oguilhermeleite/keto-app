@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from 'recharts';
 import { Plus, Eye, EyeOff, Image as ImageIcon, RefreshCw, X, Wallet, AlertCircle, ChevronDown, ChevronUp, Star, TrendingUp, Droplets } from 'lucide-react';
-import { useMultiWallet } from './hooks/useKeto';
+import { useMultiWallet, useDefiPositions } from './hooks/useKeto';
 
 const CHAINS = [
   { id: 'all',      name: 'All',      color: '#a1a1aa' },
@@ -159,12 +159,6 @@ function WatchCard({ wallet, onRemove }) {
   );
 }
 
-// Mock DeFi positions (substituir por DeFiLlama API)
-const MOCK_DEFI = [
-  { id:1, name:'SOL/USDC', protocol:'Raydium', chain:'solana', valueUSD:467.32, apy:24.5, tokens:[{symbol:'SOL',amount:2.4},{symbol:'USDC',amount:206.1}] },
-  { id:2, name:'ETH/USDC', protocol:'Uniswap v3', chain:'ethereum', valueUSD:1243.00, apy:8.2, tokens:[{symbol:'ETH',amount:0.32},{symbol:'USDC',amount:643.0}] },
-  { id:3, name:'mSOL Stake', protocol:'Marinade', chain:'solana', valueUSD:312.88, apy:6.8, tokens:[{symbol:'mSOL',amount:1.84}] },
-];
 
 export default function App() {
   const [mainTab, setMainTab]             = useState('portfolio'); // portfolio | watchlist
@@ -190,6 +184,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('keto_watchlist', JSON.stringify(watchlist)); }, [watchlist]);
 
   const { data, loading, error, refetch } = useMultiWallet(wallets);
+  const { data: defiPositions, loading: defiLoading } = useDefiPositions(wallets);
 
   const addWallet = () => {
     const t = newAddress.trim();
@@ -396,7 +391,7 @@ export default function App() {
                   {[
                     { id:'tokens', label:'Tokens',   count: filteredValue.length, icon: null },
                     { id:'nfts',   label:'NFTs',     count: filteredNFTs.length, icon: null },
-                    { id:'defi',   label:'DeFi',     count: MOCK_DEFI.length, icon: TrendingUp },
+                    { id:'defi',   label:'DeFi',     count: (defiPositions||[]).length, icon: TrendingUp },
                   ].map(tab=>(
                     <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
                       className={`flex-1 pb-3 text-xs transition-colors relative flex items-center justify-center gap-1 ${activeTab===tab.id?'text-zinc-100 font-medium':'text-zinc-500'}`}>
@@ -465,11 +460,30 @@ export default function App() {
                 {/* DeFi */}
                 {activeTab==='defi' && (
                   <div className="space-y-3">
-                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0"/>
-                      <p className="text-xs text-amber-200">DeFi positions via DeFiLlama API coming soon. Showing demo data.</p>
-                    </div>
-                    {MOCK_DEFI.map(p=><DefiCard key={p.id} position={p}/>)}
+                    {defiLoading && (
+                      <div className="space-y-3">
+                        {[1,2].map(i=>(
+                          <div key={i} className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-8 h-8 rounded-xl bg-zinc-800 animate-pulse"/>
+                              <div className="flex-1 space-y-2">
+                                <div className="h-3 bg-zinc-800 rounded animate-pulse w-24"/>
+                                <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-16"/>
+                              </div>
+                              <div className="h-4 bg-zinc-800 rounded animate-pulse w-16"/>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {!defiLoading && (defiPositions||[]).length === 0 && (
+                      <div className="text-center py-12">
+                        <Droplets className="w-10 h-10 text-zinc-700 mx-auto mb-3"/>
+                        <p className="text-zinc-400 text-sm mb-1">No DeFi positions found</p>
+                        <p className="text-zinc-600 text-xs">Liquidity pools, staking and lending positions will appear here</p>
+                      </div>
+                    )}
+                    {(defiPositions||[]).map((p,i)=><DefiCard key={i} position={p}/>)}
                   </div>
                 )}
               </>

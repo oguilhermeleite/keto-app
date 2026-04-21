@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Em produção (Vercel) usa URL relativa — frontend e API estão na mesma origem
-// Em dev local precisa do backend rodando em localhost:3001
 const KETO_API = import.meta.env.VITE_KETO_API || '';
 
 /**
@@ -73,6 +71,40 @@ export function useMultiWallet(addresses = []) {
       });
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [addresses.join(',')]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+  return { data, loading, error, refetch: fetchAll };
+}
+
+/**
+ * Busca posições DeFi de múltiplos endereços
+ */
+export function useDefiPositions(addresses = []) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchAll = useCallback(async () => {
+    if (addresses.length === 0) { setData([]); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await Promise.all(
+        addresses.map(addr =>
+          fetch(`${KETO_API}/api/defi/${addr}`)
+            .then(r => r.json())
+            .catch(() => ({ positions: [] }))
+        )
+      );
+      const all = results.flatMap(r => r.positions || []);
+      setData(all);
+    } catch (err) {
+      setError(err.message);
+      setData([]);
     } finally {
       setLoading(false);
     }
