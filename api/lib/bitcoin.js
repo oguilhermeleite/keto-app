@@ -1,10 +1,11 @@
 const { getPrices } = require('./prices');
 const { getOrdinalsAndRunes } = require('./hiro');
+const { fetchWithTimeout } = require('./fetch-timeout');
 
 async function getBitcoinPortfolio(address) {
   const [addrData, ordinalsData] = await Promise.all([
-    fetch(`https://blockstream.info/api/address/${address}`).then(r => r.json()),
-    getOrdinalsAndRunes(address),
+    fetchWithTimeout(`https://blockstream.info/api/address/${address}`, {}, 8000).then(r => r.json()),
+    getOrdinalsAndRunes(address).catch(() => ({ inscriptions: [], runes: [] })),
   ]);
 
   const funded = addrData.chain_stats.funded_txo_sum;
@@ -27,8 +28,8 @@ async function getBitcoinPortfolio(address) {
 
   return {
     chain: 'bitcoin', address, native,
-    tokens: ordinalsData.runes,      // Runes aparecem como tokens
-    nfts: ordinalsData.inscriptions, // Ordinals aparecem como NFTs
+    tokens: ordinalsData.runes || [],
+    nfts: ordinalsData.inscriptions || [],
   };
 }
 

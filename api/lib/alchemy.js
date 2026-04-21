@@ -1,4 +1,5 @@
 const { getPrices, SYMBOL_TO_CG } = require('./prices');
+const { fetchWithTimeout } = require('./fetch-timeout');
 
 const EVM_CHAINS = {
   ethereum: { subdomain: 'eth-mainnet', nativeSymbol: 'ETH', cgId: 'ethereum', nativeLogo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
@@ -11,11 +12,11 @@ const EVM_CHAINS = {
 async function rpc(chain, method, params) {
   const cfg = EVM_CHAINS[chain];
   const url = `https://${cfg.subdomain}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  });
+  }, 8000);
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
   return data.result;
@@ -77,7 +78,7 @@ async function getEVMPortfolio(chain, address) {
   try {
     const cfg2 = EVM_CHAINS[chain];
     const nftUrl = `https://${cfg2.subdomain}.g.alchemy.com/nft/v3/${process.env.ALCHEMY_API_KEY}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`;
-    const nftRes = await fetch(nftUrl);
+    const nftRes = await fetchWithTimeout(nftUrl, {}, 8000);
     const nftData = await nftRes.json();
     nfts = (nftData.ownedNfts || []).map(n => ({
       chain, contract: n.contract?.address, tokenId: n.tokenId,
@@ -86,7 +87,9 @@ async function getEVMPortfolio(chain, address) {
       image: n.image?.cachedUrl || n.image?.originalUrl,
       floorPrice: n.contract?.openSeaMetadata?.floorPrice,
     }));
-  } catch {}
+  } catch (err) {
+    console.error(`NFT fetch failed for ${chain}:`, err.message);
+  }
 
   return { chain, address, native, tokens, nfts };
 }

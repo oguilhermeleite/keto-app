@@ -183,7 +183,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('keto_wallets', JSON.stringify(wallets)); }, [wallets]);
   useEffect(() => { localStorage.setItem('keto_watchlist', JSON.stringify(watchlist)); }, [watchlist]);
 
-  const { data, loading, error, refetch } = useMultiWallet(wallets);
+  const { data, loading, error, partial, refetch } = useMultiWallet(wallets);
   const { data: defiPositions, loading: defiLoading } = useDefiPositions(wallets);
 
   const addWallet = () => {
@@ -293,7 +293,19 @@ export default function App() {
         {error && (
           <div className="mb-5 bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"/>
-            <p className="text-sm text-red-200">{error}</p>
+            <div className="flex-1">
+              <p className="text-sm text-red-200">Erro ao buscar dados</p>
+              <p className="text-xs text-red-300/70 mt-1">{error}</p>
+            </div>
+            <button onClick={refetch} className="text-xs text-red-300 hover:text-red-200 underline flex-shrink-0 mt-0.5">Tentar novamente</button>
+          </div>
+        )}
+
+        {partial && !error && (
+          <div className="mb-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl p-3 flex items-start gap-3">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0"/>
+            <p className="text-xs text-amber-200/90">Algumas redes não responderam. Os dados exibidos podem estar incompletos.</p>
+            <button onClick={refetch} className="text-xs text-amber-300 hover:text-amber-200 underline flex-shrink-0">Recarregar</button>
           </div>
         )}
 
