@@ -1,13 +1,14 @@
-// Hiro API — Ordinals e Runes na rede Bitcoin
+// Hiro API — Ordinals, Runes e BRC-20 na rede Bitcoin
 const { fetchWithTimeout } = require('./fetch-timeout');
 
-async function getOrdinalsAndRunes(address) {
-  const result = { inscriptions: [], runes: [], errors: [] };
+async function getBitcoinAssets(address) {
+  const result = { inscriptions: [], runes: [], brc20: [], errors: [] };
 
   // Busca em paralelo mas isola erros
-  const [insResult, runeResult] = await Promise.allSettled([
+  const [insResult, runeResult, brcResult] = await Promise.allSettled([
     getInscriptions(address),
     getRuneBalances(address),
+    getBrc20Balances(address),
   ]);
 
   if (insResult.status === 'fulfilled') {
@@ -22,11 +23,17 @@ async function getOrdinalsAndRunes(address) {
     result.errors.push({ source: 'runes', error: runeResult.reason?.message });
   }
 
+  if (brcResult.status === 'fulfilled') {
+    result.brc20 = brcResult.value;
+  } else {
+    result.errors.push({ source: 'brc20', error: brcResult.reason?.message });
+  }
+
   return result;
 }
 
 async function getInscriptions(address) {
-  const url = `https://api.hiro.so/ordinals/v1/inscriptions?address=${address}&limit=60`;
+  const url = `https://api.hiro.so/ordinals/v1/inscriptions?address=${address}&limit=100`;
   const headers = { 'Accept': 'application/json' };
   if (process.env.HIRO_API_KEY) headers['x-api-key'] = process.env.HIRO_API_KEY;
 
@@ -52,7 +59,7 @@ async function getInscriptions(address) {
 }
 
 async function getRuneBalances(address) {
-  const url = `https://api.hiro.so/runes/v1/addresses/${address}/balances?limit=60`;
+  const url = `https://api.hiro.so/runes/v1/addresses/${address}/balances?limit=100`;
   const headers = { 'Accept': 'application/json' };
   if (process.env.HIRO_API_KEY) headers['x-api-key'] = process.env.HIRO_API_KEY;
 
@@ -84,4 +91,36 @@ async function getRuneBalances(address) {
     });
 }
 
-module.exports = { getOrdinalsAndRunes };
+async function getBrc20Balances(address) {
+  const url = `https://api.hiro.so/ordinals/v1/brc-20/balances/${address}?limit=100`;
+  const headers = { 'Accept': 'application/json' };
+  if (process.env.HIRO_API_KEY) headers['x-api-key'] = process.env.HIRO_API_KEY;
+
+  const res = await fetchWithTimeout(url, { headers }, 10000);
+  if (!res.ok) {
+    throw new Error(`Hiro brc20 ${res.status}: ${res.statusText}`);
+  }
+  const data = await res.json();
+
+  return (data.results || [])
+    .filter(b => b.balance && Number(b.balance) > 0)
+    .map(b => {
+      const amount = Number(b.balance);
+      return {
+        chain: 'bitcoin',
+        contract: b.ticker,
+        symbol: b.ticker,
+        name: b.ticker,
+        amount,
+        valueBRL: 0,
+        valueUSD: 0,
+        priceBRL: 0,
+        priceUSD: 0,
+        change24h: 0,
+        logo: null,
+        isBrc20: true,
+      };
+    });
+}
+
+module.exports = { getBitcoinAssets };

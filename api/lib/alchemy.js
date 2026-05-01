@@ -36,12 +36,12 @@ async function getEVMPortfolio(chain, address) {
   );
 
   const tokenDetails = await Promise.all(
-    nonZero.slice(0, 10).map(async t => {
+    nonZero.map(async t => {
       try {
         const meta = await rpc(chain, 'alchemy_getTokenMetadata', [t.contractAddress]);
         const dec = meta.decimals || 18;
         const amount = parseInt(t.tokenBalance, 16) / Math.pow(10, dec);
-        if (amount < 0.0001) return null;
+        if (amount < 0.000001) return null; // Limite menor para tokens reais
         return { contract: t.contractAddress, symbol: meta.symbol, name: meta.name, logo: meta.logo, amount };
       } catch { return null; }
     })

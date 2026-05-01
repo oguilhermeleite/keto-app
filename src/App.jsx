@@ -46,6 +46,7 @@ function TokenRow({ token }) {
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium truncate">{token.name}</p>
           {token.isRune && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-mono flex-shrink-0">RUNE</span>}
+          {token.isBrc20 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-500 font-mono flex-shrink-0">BRC-20</span>}
         </div>
         <p className="text-xs text-zinc-500 font-mono truncate">{fmtAmt(token.amount)} {token.symbol}</p>
       </div>

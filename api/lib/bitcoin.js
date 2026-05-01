@@ -1,11 +1,11 @@
 const { getPrices } = require('./prices');
-const { getOrdinalsAndRunes } = require('./hiro');
+const { getBitcoinAssets } = require('./hiro');
 const { fetchWithTimeout } = require('./fetch-timeout');
 
 async function getBitcoinPortfolio(address) {
-  const [addrData, ordinalsData] = await Promise.all([
+  const [addrData, btcAssets] = await Promise.all([
     fetchWithTimeout(`https://blockstream.info/api/address/${address}`, {}, 8000).then(r => r.json()),
-    getOrdinalsAndRunes(address).catch(e => ({ inscriptions: [], runes: [], errors: [{ source: 'hiro-fatal', error: e.message }] })),
+    getBitcoinAssets(address).catch(e => ({ inscriptions: [], runes: [], brc20: [], errors: [{ source: 'hiro-fatal', error: e.message }] })),
   ]);
 
   const funded = addrData.chain_stats.funded_txo_sum;
@@ -26,16 +26,23 @@ async function getBitcoinPortfolio(address) {
     change24h: btcPrice.brl_24h_change || 0,
   };
 
+  // Combina Runes e BRC-20 como tokens
+  const tokens = [
+    ...(btcAssets.runes || []),
+    ...(btcAssets.brc20 || []),
+  ];
+
   return {
     chain: 'bitcoin',
     address,
     native,
-    tokens: ordinalsData.runes || [],
-    nfts: ordinalsData.inscriptions || [],
+    tokens,
+    nfts: btcAssets.inscriptions || [],
     debug: {
-      hiroErrors: ordinalsData.errors || [],
-      runesCount: (ordinalsData.runes || []).length,
-      inscriptionsCount: (ordinalsData.inscriptions || []).length,
+      hiroErrors: btcAssets.errors || [],
+      runesCount: (btcAssets.runes || []).length,
+      brc20Count: (btcAssets.brc20 || []).length,
+      inscriptionsCount: (btcAssets.inscriptions || []).length,
     },
   };
 }
