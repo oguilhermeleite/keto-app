@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from 'recharts';
-import { Plus, Eye, EyeOff, Image as ImageIcon, RefreshCw, X, Wallet, AlertCircle, ChevronDown, ChevronUp, Star, TrendingUp, Droplets } from 'lucide-react';
+import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart, LineChart, Line, BarChart, Bar } from 'recharts';
+import { Plus, Eye, EyeOff, Image as ImageIcon, RefreshCw, X, Wallet, AlertCircle, ChevronDown, ChevronUp, Star, TrendingUp, Droplets, ArrowUp, ArrowDown } from 'lucide-react';
 import { useMultiWallet, useDefiPositions } from './hooks/useKeto';
 
 const CHAINS = [
@@ -17,6 +17,29 @@ const CHAIN_COLOR = Object.fromEntries(CHAINS.map(c => [c.id, c.color]));
 
 const fmtUSD = (v) => `$${(v||0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtAmt = (v, max=4) => (v||0).toLocaleString('en-US', { maximumFractionDigits: max });
+
+function StatCard({ label, value, subtext, icon: Icon, trend, color = '#10b981' }) {
+  return (
+    <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 flex items-start justify-between">
+      <div className="flex-1">
+        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{label}</p>
+        <p className="text-3xl font-light font-mono mb-1">{value}</p>
+        {subtext && <p className="text-xs text-zinc-600">{subtext}</p>}
+      </div>
+      {Icon && (
+        <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{background: `${color}15`}}>
+          <Icon className="w-5 h-5" style={{color}}/>
+        </div>
+      )}
+      {trend && (
+        <div className={`flex items-center gap-1 text-xs font-mono ml-4 ${trend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          {trend >= 0 ? <ArrowUp className="w-3 h-3"/> : <ArrowDown className="w-3 h-3"/>}
+          {Math.abs(trend).toFixed(2)}%
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TokenLogo({ token, size=44 }) {
   const [err, setErr] = useState(false);
@@ -40,7 +63,7 @@ function TokenLogo({ token, size=44 }) {
 
 function TokenRow({ token }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-zinc-900/60 hover:bg-zinc-900/40 transition-colors">
+    <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-zinc-900/60 hover:bg-zinc-900/40 transition-colors border border-transparent hover:border-zinc-800/40">
       <TokenLogo token={token}/>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -80,13 +103,11 @@ function NFTCard({ nft, onPress }) {
       <div className="p-3">
         <p className="text-[10px] text-zinc-500 truncate mb-0.5">{nft.collection}</p>
         <p className="text-xs font-medium truncate">{nft.name}</p>
-        {nft.floorPrice && <p className="text-[10px] text-zinc-500 font-mono mt-1">{nft.floorPrice} ETH floor</p>}
       </div>
     </div>
   );
 }
 
-// DeFi position card
 function DefiCard({ position }) {
   return (
     <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4">
@@ -97,7 +118,7 @@ function DefiCard({ position }) {
           </div>
           <div>
             <p className="text-sm font-medium">{position.name}</p>
-            <p className="text-xs text-zinc-500">{position.protocol} · {position.chain}</p>
+            <p className="text-xs text-zinc-500 capitalize">{position.protocol} · {position.chain}</p>
           </div>
         </div>
         <div className="text-right">
@@ -105,53 +126,12 @@ function DefiCard({ position }) {
           {position.apy && <p className="text-xs text-emerald-400 font-mono">{position.apy}% APY</p>}
         </div>
       </div>
-      <div className="flex gap-2">
-        {(position.tokens||[]).map((t,i) => (
-          <div key={i} className="flex-1 bg-zinc-950/60 rounded-xl p-2.5 text-center">
-            <p className="text-xs text-zinc-500 mb-0.5">{t.symbol}</p>
-            <p className="text-xs font-mono">{fmtAmt(t.amount, 4)}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Watchlist card
-function WatchCard({ wallet, onRemove }) {
-  const { data, loading } = useMultiWallet([wallet.address]);
-  const total = data?.summary?.totalUSD || 0;
-  const topTokens = (data?.tokens||[]).filter(t=>(t.valueUSD||0)>0.5).slice(0,3);
-
-  return (
-    <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-            <Star className="w-4 h-4 text-amber-400"/>
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{wallet.label || 'Wallet'}</p>
-            <p className="text-[10px] text-zinc-500 font-mono">{wallet.address.slice(0,6)}…{wallet.address.slice(-4)}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {loading
-            ? <div className="w-16 h-4 bg-zinc-800 rounded animate-pulse"/>
-            : <p className="text-sm font-mono font-medium">{fmtUSD(total)}</p>
-          }
-          <button onClick={onRemove} className="text-zinc-600 hover:text-red-400 transition-colors p-1">
-            <X className="w-3.5 h-3.5"/>
-          </button>
-        </div>
-      </div>
-      {!loading && topTokens.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap">
-          {topTokens.map((t,i) => (
-            <div key={i} className="flex items-center gap-1 px-2 py-1 bg-zinc-950/60 rounded-lg">
-              {t.logo && <img src={t.logo} className="w-3 h-3 rounded-full" alt="" onError={e=>e.target.style.display='none'}/>}
-              <span className="text-[10px] font-mono text-zinc-400">{t.symbol}</span>
-              <span className="text-[10px] font-mono text-zinc-500">{fmtUSD(t.valueUSD)}</span>
+      {(position.tokens||[]).length > 0 && (
+        <div className="flex gap-2">
+          {position.tokens.map((t,i) => (
+            <div key={i} className="flex-1 bg-zinc-950/60 rounded-xl p-2.5 text-center">
+              <p className="text-xs text-zinc-500 mb-0.5">{t.symbol}</p>
+              <p className="text-xs font-mono">{fmtAmt(t.amount, 4)}</p>
             </div>
           ))}
         </div>
@@ -160,10 +140,9 @@ function WatchCard({ wallet, onRemove }) {
   );
 }
 
-
 export default function App() {
-  const [mainTab, setMainTab]             = useState('portfolio'); // portfolio | watchlist
-  const [activeTab, setActiveTab]         = useState('tokens');    // tokens | nfts | defi
+  const [mainTab, setMainTab]             = useState('portfolio');
+  const [activeTab, setActiveTab]         = useState('overview');
   const [selectedChain, setSelectedChain] = useState('all');
   const [selectedNFT, setSelectedNFT]     = useState(null);
   const [showAddWallet, setShowAddWallet] = useState(false);
@@ -240,26 +219,26 @@ export default function App() {
     }));
   }, [totalUSD]);
 
-  const hide = (v) => hideBalance ? '••••' : v;
+  const hide = (v) => hideBalance ? '••••••' : v;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans pb-10">
-      <div className="fixed inset-0 pointer-events-none z-[1] opacity-[0.015]"
+    <div className="min-h-screen bg-black text-zinc-100 font-sans pb-10">
+      <div className="fixed inset-0 pointer-events-none z-[1] opacity-[0.03]"
         style={{backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E")`}}/>
 
       {/* Header */}
-      <header className="border-b border-zinc-900 backdrop-blur-xl bg-zinc-950/90 sticky top-0 z-40">
-        <div className="px-5 py-4 flex items-center justify-between max-w-2xl mx-auto">
+      <header className="border-b border-zinc-900 backdrop-blur-xl bg-black/95 sticky top-0 z-40">
+        <div className="px-6 py-5 flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
-              <span className="text-sm font-bold text-zinc-950">K</span>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
+              <span className="text-lg font-bold text-black">K</span>
             </div>
             <div>
-              <h1 className="text-sm font-semibold leading-none">keto</h1>
-              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5">portfolio · beta</p>
+              <h1 className="text-lg font-semibold leading-none">keto</h1>
+              <p className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest mt-1">portfolio analytics</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button onClick={refetch} disabled={loading} className="w-9 h-9 flex items-center justify-center hover:bg-zinc-900 rounded-xl transition-colors">
               <RefreshCw className={`w-4 h-4 text-zinc-400 ${loading?'animate-spin':''}`}/>
             </button>
@@ -268,191 +247,159 @@ export default function App() {
             </button>
             <button
               onClick={()=> mainTab==='portfolio' ? setShowAddWallet(true) : setShowAddWatch(true)}
-              className="ml-1 px-3.5 py-2 bg-zinc-100 text-zinc-950 text-xs font-semibold rounded-xl hover:bg-white transition-colors flex items-center gap-1.5">
+              className="ml-2 px-4 py-2 bg-emerald-500 text-black text-xs font-semibold rounded-xl hover:bg-emerald-400 transition-colors flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" strokeWidth={2.5}/>
-              {mainTab === 'portfolio' ? 'Wallet' : 'Watch'}
+              Add
             </button>
           </div>
         </div>
 
         {/* Main tabs */}
-        <div className="flex px-5 max-w-2xl mx-auto">
+        <div className="flex px-6 max-w-7xl mx-auto border-t border-zinc-900">
           {[
-            { id:'portfolio', label:'Portfolio', icon: null },
-            { id:'watchlist', label:'Watchlist', icon: Star },
+            { id:'portfolio', label:'Portfolio' },
+            { id:'watchlist', label:'Watchlist' },
           ].map(t => (
             <button key={t.id} onClick={()=>setMainTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 transition-colors ${mainTab===t.id ? 'border-emerald-400 text-zinc-100 font-medium' : 'border-transparent text-zinc-500'}`}>
-              {t.icon && <t.icon className="w-3.5 h-3.5"/>}
+              className={`flex items-center gap-2 px-5 py-3 text-sm border-b-2 transition-colors ${mainTab===t.id ? 'border-emerald-500 text-zinc-100 font-medium' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}>
               {t.label}
             </button>
           ))}
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 pt-7 relative z-10">
+      <main className="max-w-7xl mx-auto px-6 pt-8 relative z-10">
         {error && (
-          <div className="mb-5 bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3">
+          <div className="mb-6 bg-red-500/5 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3 mb-8">
             <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0"/>
             <div className="flex-1">
-              <p className="text-sm text-red-200">Erro ao buscar dados</p>
+              <p className="text-sm text-red-200">Error loading portfolio</p>
               <p className="text-xs text-red-300/70 mt-1">{error}</p>
             </div>
-            <button onClick={refetch} className="text-xs text-red-300 hover:text-red-200 underline flex-shrink-0 mt-0.5">Tentar novamente</button>
+            <button onClick={refetch} className="text-xs text-red-300 hover:text-red-200 underline flex-shrink-0 mt-0.5">Retry</button>
           </div>
         )}
 
         {partial && !error && (
-          <div className="mb-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl p-3 flex items-start gap-3">
+          <div className="mb-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl p-3 flex items-start gap-3">
             <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0"/>
-            <p className="text-xs text-amber-200/90">Algumas redes não responderam. Os dados exibidos podem estar incompletos.</p>
-            <button onClick={refetch} className="text-xs text-amber-300 hover:text-amber-200 underline flex-shrink-0">Recarregar</button>
+            <p className="text-xs text-amber-200/90">Some networks failed to respond. Data may be incomplete.</p>
+            <button onClick={refetch} className="text-xs text-amber-300 hover:text-amber-200 underline flex-shrink-0">Reload</button>
           </div>
         )}
 
         {/* ── PORTFOLIO ── */}
         {mainTab === 'portfolio' && (
           <>
-            {/* Hero */}
-            <section className="mb-8">
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Total Portfolio</p>
-              <h2 className="text-4xl font-light tracking-tight font-mono leading-none mb-1">
-                {hide(fmtUSD(totalUSD))}
-              </h2>
-            </section>
-
-            {/* Stats */}
-            <section className="grid grid-cols-3 gap-2.5 mb-8">
-              {[
-                { label:'Tokens', value: valueTokens.length },
-                { label:'NFTs',   value: (data?.nfts||[]).length },
-                { label:'Networks', value: activeChains.length },
-              ].map(s => (
-                <div key={s.label} className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4 text-center">
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{s.label}</p>
-                  <p className="text-2xl font-light font-mono">{s.value}</p>
-                </div>
-              ))}
-            </section>
-
-            {/* Chart */}
-            {chartData.length > 0 && (
-              <section className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-5 mb-8">
-                <p className="text-xs font-medium mb-0.5">Portfolio Growth</p>
-                <p className="text-xs text-zinc-500 mb-4">Last 6 months</p>
-                <ResponsiveContainer width="100%" height={150}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.25}/>
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="date" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false}/>
-                    <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                    <Tooltip contentStyle={{backgroundColor:'#09090b',border:'1px solid #27272a',borderRadius:'10px',fontSize:'12px'}} formatter={v=>[`$${v.toLocaleString('en-US')}`,'Portfolio']}/>
-                    <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fill="url(#grad)"/>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </section>
-            )}
-
-            {/* Wallets */}
-            {wallets.length > 0 && (
-              <section className="mb-6">
-                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Connected Wallets</p>
-                <div className="flex flex-wrap gap-2">
-                  {wallets.map(w => (
-                    <div key={w} className="flex items-center gap-2 px-3 py-2 bg-zinc-900/60 border border-zinc-800 rounded-full text-xs">
-                      <Wallet className="w-3 h-3 text-zinc-500"/>
-                      <span className="font-mono text-zinc-300">{w.slice(0,5)}…{w.slice(-4)}</span>
-                      <button onClick={()=>setWallets(wallets.filter(x=>x!==w))} className="text-zinc-600 hover:text-red-400 transition-colors">
-                        <X className="w-3 h-3"/>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Empty state */}
-            {wallets.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-zinc-400 text-sm mb-1">No wallets connected</p>
-                <p className="text-zinc-600 text-xs mb-5">Add your public address to get started</p>
-                <button onClick={()=>setShowAddWallet(true)} className="px-5 py-2.5 bg-emerald-500 text-zinc-950 text-sm font-semibold rounded-xl">
+            {wallets.length === 0 ? (
+              <div className="text-center py-20">
+                <p className="text-zinc-400 text-lg mb-2">No wallets connected</p>
+                <p className="text-zinc-600 text-sm mb-8">Add your public address to begin tracking</p>
+                <button onClick={()=>setShowAddWallet(true)} className="px-6 py-3 bg-emerald-500 text-black text-sm font-semibold rounded-xl hover:bg-emerald-400">
                   + Add Wallet
                 </button>
               </div>
-            )}
-
-            {wallets.length > 0 && (
+            ) : (
               <>
-                {/* Chain filter */}
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 mb-1" style={{scrollbarWidth:'none'}}>
-                  {CHAINS.filter(c=>c.id==='all'||activeChains.includes(c.id)).map(c=>(
-                    <button key={c.id} onClick={()=>setSelectedChain(c.id)}
-                      className={`flex-shrink-0 px-3.5 py-1.5 text-xs rounded-full border transition-all flex items-center gap-1.5 ${selectedChain===c.id ? 'bg-zinc-100 text-zinc-950 border-zinc-100 font-medium' : 'text-zinc-400 border-zinc-800'}`}>
-                      {c.id!=='all' && <span className="w-1.5 h-1.5 rounded-full" style={{background:c.color}}/>}
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
+                {/* Analytics Header */}
+                <section className="mb-10">
+                  <div className="flex items-end justify-between mb-8">
+                    <div>
+                      <h2 className="text-4xl font-light tracking-tight font-mono mb-2">{hide(fmtUSD(totalUSD))}</h2>
+                      <p className="text-sm text-zinc-500">Total Portfolio Value</p>
+                    </div>
+                    <div className="flex gap-2">
+                      {CHAINS.filter(c=>c.id==='all'||activeChains.includes(c.id)).map(c=>(
+                        <button key={c.id} onClick={()=>setSelectedChain(c.id)}
+                          className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${selectedChain===c.id ? 'bg-zinc-100 text-black border-zinc-100' : 'text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}>
+                          {c.id==='all' ? '⬤ All' : c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Sub tabs */}
-                <div className="flex gap-0 border-b border-zinc-900 mb-4 mt-5">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <StatCard label="Assets" value={valueTokens.length} icon={TrendingUp} color="#10b981"/>
+                    <StatCard label="Collections" value={(data?.nfts||[]).length} icon={ImageIcon} color="#3b82f6"/>
+                    <StatCard label="Networks" value={activeChains.length} color="#f59e0b"/>
+                    <StatCard label="DeFi Positions" value={(defiPositions||[]).length} icon={Droplets} color="#8b5cf6"/>
+                  </div>
+
+                  {/* Main Chart */}
+                  {chartData.length > 0 && (
+                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-8 mb-8">
+                      <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-1">Portfolio Performance</h3>
+                        <p className="text-xs text-zinc-500">Last 6 months</p>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={chartData}>
+                          <defs>
+                            <linearGradient id="gradChart" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.3}/>
+                              <stop offset="100%" stopColor="#7c3aed" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false}/>
+                          <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
+                          <Tooltip contentStyle={{backgroundColor:'#18181b',border:'1px solid #27272a',borderRadius:'12px',fontSize:'12px'}} formatter={v=>[`$${v.toLocaleString('en-US')}`,'Value']}/>
+                          <Area type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2} fill="url(#gradChart)"/>
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </section>
+
+                {/* Tabs */}
+                <div className="flex gap-0 border-b border-zinc-900 mb-6">
                   {[
-                    { id:'tokens', label:'Tokens',   count: filteredValue.length, icon: null },
-                    { id:'nfts',   label:'NFTs',     count: filteredNFTs.length, icon: null },
-                    { id:'defi',   label:'DeFi',     count: (defiPositions||[]).length, icon: TrendingUp },
+                    { id:'overview', label:'Overview', count: filteredValue.length },
+                    { id:'nfts',     label:'Collections', count: filteredNFTs.length },
+                    { id:'defi',     label:'DeFi', count: (defiPositions||[]).length },
                   ].map(tab=>(
                     <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-                      className={`flex-1 pb-3 text-xs transition-colors relative flex items-center justify-center gap-1 ${activeTab===tab.id?'text-zinc-100 font-medium':'text-zinc-500'}`}>
-                      {tab.icon && <tab.icon className="w-3 h-3"/>}
+                      className={`pb-4 text-sm transition-colors relative flex items-center gap-2 ${activeTab===tab.id?'text-zinc-100 font-medium':'text-zinc-500'}`}>
                       {tab.label}
-                      <span className="ml-0.5 text-[10px] text-zinc-600 font-mono">{tab.count}</span>
-                      {activeTab===tab.id && <div className="absolute bottom-0 left-4 right-4 h-px bg-emerald-400 rounded-full"/>}
+                      <span className="text-xs text-zinc-600 font-mono">{tab.count}</span>
+                      {activeTab===tab.id && <div className="absolute bottom-0 left-0 right-0 h-px bg-emerald-500 rounded-full"/>}
                     </button>
                   ))}
                 </div>
 
-                {/* Tokens */}
-                {activeTab==='tokens' && (
+                {/* Content */}
+                {activeTab==='overview' && (
                   <div>
                     {loading && (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {[1,2,3,4].map(i=>(
-                          <div key={i} className="flex items-center gap-3 px-4 py-3.5 rounded-xl">
+                          <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl">
                             <div className="w-11 h-11 rounded-full bg-zinc-800 animate-pulse flex-shrink-0"/>
                             <div className="flex-1 space-y-2">
                               <div className="h-3 bg-zinc-800 rounded animate-pulse w-24"/>
                               <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-16"/>
                             </div>
-                            <div className="space-y-2">
-                              <div className="h-3 bg-zinc-800 rounded animate-pulse w-16"/>
-                              <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-10"/>
-                            </div>
                           </div>
                         ))}
                       </div>
                     )}
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       {filteredValue.sort((a,b)=>(b.valueUSD||0)-(a.valueUSD||0)).map((t,i)=>(
                         <TokenRow key={`v-${t.chain}-${t.contract||t.symbol}-${i}`} token={t}/>
                       ))}
                     </div>
                     {filteredSpam.length > 0 && (
-                      <div className="mt-5">
+                      <div className="mt-6">
                         <button onClick={()=>setShowSpam(!showSpam)} className="w-full flex items-center gap-3 py-3">
                           <div className="flex-1 h-px bg-zinc-800"/>
                           <span className="text-xs text-zinc-600 flex items-center gap-1.5 flex-shrink-0">
                             {showSpam ? <ChevronUp className="w-3.5 h-3.5"/> : <ChevronDown className="w-3.5 h-3.5"/>}
-                            {filteredSpam.length} zero-value tokens
+                            {filteredSpam.length} dust tokens
                           </span>
                           <div className="flex-1 h-px bg-zinc-800"/>
                         </button>
                         {showSpam && (
-                          <div className="space-y-0.5 opacity-40">
+                          <div className="space-y-1 opacity-40">
                             {filteredSpam.map((t,i)=><TokenRow key={`s-${i}`} token={t}/>)}
                           </div>
                         )}
@@ -461,39 +408,27 @@ export default function App() {
                   </div>
                 )}
 
-                {/* NFTs */}
                 {activeTab==='nfts' && (
                   filteredNFTs.length===0
                     ? <p className="text-center py-12 text-zinc-500 text-sm">No NFTs or Ordinals found</p>
-                    : <div className="grid grid-cols-2 gap-3">
+                    : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {filteredNFTs.map((nft,i)=><NFTCard key={i} nft={nft} onPress={()=>setSelectedNFT(nft)}/>)}
                       </div>
                 )}
 
-                {/* DeFi */}
                 {activeTab==='defi' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {defiLoading && (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {[1,2].map(i=>(
-                          <div key={i} className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-8 h-8 rounded-xl bg-zinc-800 animate-pulse"/>
-                              <div className="flex-1 space-y-2">
-                                <div className="h-3 bg-zinc-800 rounded animate-pulse w-24"/>
-                                <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-16"/>
-                              </div>
-                              <div className="h-4 bg-zinc-800 rounded animate-pulse w-16"/>
-                            </div>
-                          </div>
+                          <div key={i} className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-4 animate-pulse h-32"/>
                         ))}
                       </div>
                     )}
-                    {!defiLoading && (defiPositions||[]).length === 0 && (
+                    {(defiPositions||[]).length === 0 && !defiLoading && (
                       <div className="text-center py-12">
                         <Droplets className="w-10 h-10 text-zinc-700 mx-auto mb-3"/>
-                        <p className="text-zinc-400 text-sm mb-1">No DeFi positions found</p>
-                        <p className="text-zinc-600 text-xs">Liquidity pools, staking and lending positions will appear here</p>
+                        <p className="text-zinc-400 text-sm">No DeFi positions found</p>
                       </div>
                     )}
                     {(defiPositions||[]).map((p,i)=><DefiCard key={i} position={p}/>)}
@@ -507,26 +442,41 @@ export default function App() {
         {/* ── WATCHLIST ── */}
         {mainTab === 'watchlist' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-base font-semibold">Watchlist</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Track wallets from traders you follow</p>
+                <h2 className="text-2xl font-light">Watchlist</h2>
+                <p className="text-sm text-zinc-500 mt-1">Track wallets and traders you follow</p>
               </div>
             </div>
 
             {watchlist.length === 0 ? (
               <div className="text-center py-16">
-                <Star className="w-10 h-10 text-zinc-700 mx-auto mb-3"/>
-                <p className="text-zinc-400 text-sm mb-1">No wallets watched</p>
-                <p className="text-zinc-600 text-xs mb-5">Add a trader's address to track their moves</p>
-                <button onClick={()=>setShowAddWatch(true)} className="px-5 py-2.5 bg-amber-500 text-zinc-950 text-sm font-semibold rounded-xl">
+                <Star className="w-12 h-12 text-zinc-700 mx-auto mb-4"/>
+                <p className="text-zinc-400 text-lg mb-2">No wallets watched</p>
+                <p className="text-zinc-600 text-sm mb-6">Add a trader's address to track their moves</p>
+                <button onClick={()=>setShowAddWatch(true)} className="px-6 py-3 bg-emerald-500 text-black text-sm font-semibold rounded-xl">
                   + Add to Watchlist
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {watchlist.map((w,i)=>(
-                  <WatchCard key={i} wallet={w} onRemove={()=>setWatchlist(watchlist.filter((_,j)=>j!==i))}/>
+                  <div key={i} className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                          <Star className="w-5 h-5 text-amber-400"/>
+                        </div>
+                        <div>
+                          <p className="font-medium">{w.label}</p>
+                          <p className="text-xs text-zinc-500 font-mono">{w.address.slice(0,10)}…{w.address.slice(-8)}</p>
+                        </div>
+                      </div>
+                      <button onClick={()=>setWatchlist(watchlist.filter((_,j)=>j!==i))} className="text-zinc-600 hover:text-red-400 transition-colors">
+                        <X className="w-4 h-4"/>
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -536,45 +486,19 @@ export default function App() {
 
       {/* Add Wallet modal */}
       {showAddWallet && (
-        <div className="fixed inset-0 bg-zinc-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center" onClick={()=>setShowAddWallet(false)}>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center" onClick={()=>setShowAddWallet(false)}>
           <div className="bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md" onClick={e=>e.stopPropagation()}>
             <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5 sm:hidden"/>
-            <h3 className="text-base font-semibold mb-1">Add your wallet</h3>
-            <p className="text-xs text-zinc-500 mb-4">Supports Ethereum, Bitcoin, Solana and all EVM networks</p>
+            <h3 className="text-lg font-semibold mb-1">Add Wallet</h3>
+            <p className="text-xs text-zinc-500 mb-5">Paste your public wallet address</p>
             <input type="text" value={newAddress} onChange={e=>setNewAddress(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&addWallet()}
               placeholder="0x... · bc1... · Solana address"
-              className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+              className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 mb-4"
               autoFocus/>
-            <p className="mt-3 text-[11px] text-zinc-500 bg-zinc-950/80 border border-zinc-800/60 rounded-xl p-3 leading-relaxed">
-              🔒 Read-only. We never ask for private keys. Addresses are stored only on this device.
-            </p>
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2">
               <button onClick={()=>setShowAddWallet(false)} className="flex-1 py-3 border border-zinc-800 rounded-xl text-sm">Cancel</button>
-              <button onClick={addWallet} disabled={!newAddress.trim()} className="flex-1 py-3 bg-emerald-500 text-zinc-950 rounded-xl text-sm font-semibold disabled:opacity-40">Add Wallet</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Watch modal */}
-      {showAddWatch && (
-        <div className="fixed inset-0 bg-zinc-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center" onClick={()=>setShowAddWatch(false)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-md" onClick={e=>e.stopPropagation()}>
-            <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5 sm:hidden"/>
-            <h3 className="text-base font-semibold mb-1">Add to Watchlist</h3>
-            <p className="text-xs text-zinc-500 mb-4">Track any public wallet — traders, whales, funds</p>
-            <input type="text" value={newLabel} onChange={e=>setNewLabel(e.target.value)}
-              placeholder='Label (e.g. "GCR", "Ansem")'
-              className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-amber-500/50 mb-2"
-              autoFocus/>
-            <input type="text" value={newAddress} onChange={e=>setNewAddress(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&addWatch()}
-              placeholder="0x... · bc1... · Solana address"
-              className="w-full px-4 py-3.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"/>
-            <div className="flex gap-2 mt-4">
-              <button onClick={()=>setShowAddWatch(false)} className="flex-1 py-3 border border-zinc-800 rounded-xl text-sm">Cancel</button>
-              <button onClick={addWatch} disabled={!newAddress.trim()} className="flex-1 py-3 bg-amber-500 text-zinc-950 rounded-xl text-sm font-semibold disabled:opacity-40">Add</button>
+              <button onClick={addWallet} disabled={!newAddress.trim()} className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-sm font-semibold disabled:opacity-40">Add</button>
             </div>
           </div>
         </div>
@@ -582,7 +506,7 @@ export default function App() {
 
       {/* NFT modal */}
       {selectedNFT && (
-        <div className="fixed inset-0 bg-zinc-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center" onClick={()=>setSelectedNFT(null)}>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center" onClick={()=>setSelectedNFT(null)}>
           <div className="bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl overflow-hidden w-full sm:max-w-sm" onClick={e=>e.stopPropagation()}>
             <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mt-3 sm:hidden"/>
             <div className="aspect-square bg-zinc-900 mt-2">
@@ -591,13 +515,11 @@ export default function App() {
                 : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-16 h-16 text-zinc-700"/></div>
               }
             </div>
-            <div className="p-5">
+            <div className="p-6">
               <p className="text-xs text-zinc-500 mb-1">{selectedNFT.collection}</p>
               <h3 className="text-lg font-medium mb-4">{selectedNFT.name}</h3>
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-800">
                 <div><p className="text-xs text-zinc-500 mb-1">Network</p><p className="text-sm font-mono uppercase">{selectedNFT.chain}</p></div>
-                {selectedNFT.isOrdinal && <div><p className="text-xs text-zinc-500 mb-1">Inscription</p><p className="text-sm font-mono">#{selectedNFT.inscriptionNumber}</p></div>}
-                {selectedNFT.floorPrice && <div><p className="text-xs text-zinc-500 mb-1">Floor</p><p className="text-sm font-mono">{selectedNFT.floorPrice} ETH</p></div>}
               </div>
               <button onClick={()=>setSelectedNFT(null)} className="w-full mt-4 py-3 border border-zinc-800 rounded-xl text-sm">Close</button>
             </div>
