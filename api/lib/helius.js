@@ -3,25 +3,41 @@ const { getJupiterPrices } = require('./jupiter');
 const { fetchWithTimeout } = require('./fetch-timeout');
 
 async function getSolanaPortfolio(address) {
-  const url = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+  const apiKey = process.env.HELIUS_API_KEY;
+  if (!apiKey) {
+    throw new Error('HELIUS_API_KEY not configured');
+  }
 
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0', id: 1,
-      method: 'getAssetsByOwner',
-      params: {
-        ownerAddress: address,
-        page: 1, limit: 100,
-        displayOptions: { showFungible: true, showNativeBalance: true },
-      },
-    }),
-  }, 10000);
+  const url = `https://mainnet.helius-rpc.com/?api-key=${apiKey}`;
 
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  let res, data;
+  try {
+    res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getAssetsByOwner',
+        params: {
+          ownerAddress: address,
+          page: 1, limit: 100,
+          displayOptions: { showFungible: true, showNativeBalance: true },
+        },
+      }),
+    }, 10000);
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Helius request failed: ${err.message}`);
+  }
+
+  if (data.error) {
+    throw new Error(`Helius RPC error: ${data.error.message}`);
+  }
+
   const assets = data.result;
+  if (!assets) {
+    throw new Error('No assets returned from Helius');
+  }
 
   const nativeSOL = (assets.nativeBalance?.lamports || 0) / 1e9;
   const prices = await getPrices(['solana']);
@@ -39,7 +55,7 @@ async function getSolanaPortfolio(address) {
 
   const tokens = [];
   const nfts = [];
-  const mintsNeedingPrice = []; // tokens sem preço do Helius
+  const mintsNeedingPrice = [];
 
   for (const item of assets.items || []) {
     if (item.interface === 'FungibleToken' || item.interface === 'FungibleAsset') {
@@ -66,7 +82,6 @@ async function getSolanaPortfolio(address) {
 
       tokens.push(token);
 
-      // Se o Helius não retornou preço, vamos tentar o Jupiter depois
       if (priceUSDHelius === 0) {
         mintsNeedingPrice.push(item.id);
       }
@@ -81,7 +96,7 @@ async function getSolanaPortfolio(address) {
     }
   }
 
-  // Fallback: buscar preços dos tokens sem preço via Jupiter
+  // Jupiter fallback
   if (mintsNeedingPrice.length > 0) {
     try {
       const jupiterPrices = await getJupiterPrices(mintsNeedingPrice);
@@ -93,11 +108,11 @@ async function getSolanaPortfolio(address) {
         }
       }
     } catch (err) {
-      console.error('Jupiter fallback failed:', err.message);
+      console.warn('Jupiter fallback failed:', err.message);
     }
   }
 
-  // Converte USD -> BRL pra todos os tokens
+  // USD to BRL
   const usdToBrl = solPrice.brl && solPrice.usd ? solPrice.brl / solPrice.usd : 5.5;
   for (const token of tokens) {
     token.priceBRL = token.priceUSD * usdToBrl;
