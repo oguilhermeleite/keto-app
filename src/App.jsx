@@ -20,21 +20,15 @@ const fmtAmt = (v, max=4) => (v||0).toLocaleString('en-US', { maximumFractionDig
 
 function StatCard({ label, value, subtext, icon: Icon, trend, color = '#10b981' }) {
   return (
-    <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 flex items-start justify-between">
-      <div className="flex-1">
-        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{label}</p>
-        <p className="text-3xl font-light font-mono mb-1">{value}</p>
-        {subtext && <p className="text-xs text-zinc-600">{subtext}</p>}
+    <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4 sm:p-6 flex items-start justify-between">
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mb-1 sm:mb-2">{label}</p>
+        <p className="text-2xl sm:text-3xl font-light font-mono leading-none">{value}</p>
+        {subtext && <p className="text-[10px] sm:text-xs text-zinc-600 mt-1">{subtext}</p>}
       </div>
       {Icon && (
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style={{background: `${color}15`}}>
-          <Icon className="w-5 h-5" style={{color}}/>
-        </div>
-      )}
-      {trend && (
-        <div className={`flex items-center gap-1 text-xs font-mono ml-4 ${trend >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-          {trend >= 0 ? <ArrowUp className="w-3 h-3"/> : <ArrowDown className="w-3 h-3"/>}
-          {Math.abs(trend).toFixed(2)}%
+        <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center ml-2" style={{background: `${color}15`}}>
+          <Icon className="w-4 sm:w-5 h-4 sm:h-5" style={{color}}/>
         </div>
       )}
     </div>
@@ -319,21 +313,21 @@ export default function App() {
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                  <div className="grid grid-cols-2 gap-2 mb-6">
                     <StatCard label="Assets" value={valueTokens.length} icon={TrendingUp} color="#10b981"/>
                     <StatCard label="Collections" value={(data?.nfts||[]).length} icon={ImageIcon} color="#3b82f6"/>
                     <StatCard label="Networks" value={activeChains.length} color="#f59e0b"/>
-                    <StatCard label="DeFi Positions" value={(defiPositions||[]).length} icon={Droplets} color="#8b5cf6"/>
+                    <StatCard label="DeFi" value={(defiPositions||[]).length} icon={Droplets} color="#8b5cf6"/>
                   </div>
 
                   {/* Main Chart */}
                   {chartData.length > 0 && (
-                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-8 mb-8">
-                      <div className="mb-6">
-                        <h3 className="text-lg font-medium mb-1">Portfolio Performance</h3>
-                        <p className="text-xs text-zinc-500">Last 6 months</p>
+                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-4 sm:p-8 mb-6 sm:mb-8">
+                      <div className="mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-lg font-medium mb-0.5 sm:mb-1">Portfolio Performance</h3>
+                        <p className="text-[10px] sm:text-xs text-zinc-500">Last 6 months</p>
                       </div>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={180}>
                         <AreaChart data={chartData}>
                           <defs>
                             <linearGradient id="gradChart" x1="0" y1="0" x2="0" y2="1">
@@ -341,9 +335,9 @@ export default function App() {
                               <stop offset="100%" stopColor="#7c3aed" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
-                          <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false}/>
-                          <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
-                          <Tooltip contentStyle={{backgroundColor:'#18181b',border:'1px solid #27272a',borderRadius:'12px',fontSize:'12px'}} formatter={v=>[`$${v.toLocaleString('en-US')}`,'Value']}/>
+                          <XAxis dataKey="date" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false}/>
+                          <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v=>`$${(v/1000).toFixed(0)}k`}/>
+                          <Tooltip contentStyle={{backgroundColor:'#18181b',border:'1px solid #27272a',borderRadius:'8px',fontSize:'11px'}} formatter={v=>[`$${v.toLocaleString('en-US')}`,'Value']}/>
                           <Area type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2} fill="url(#gradChart)"/>
                         </AreaChart>
                       </ResponsiveContainer>
@@ -352,16 +346,16 @@ export default function App() {
                 </section>
 
                 {/* Tabs */}
-                <div className="flex gap-0 border-b border-zinc-900 mb-6">
+                <div className="flex gap-0 border-b border-zinc-900 mb-4 sm:mb-6 overflow-x-auto">
                   {[
                     { id:'overview', label:'Overview', count: filteredValue.length },
                     { id:'nfts',     label:'Collections', count: filteredNFTs.length },
                     { id:'defi',     label:'DeFi', count: (defiPositions||[]).length },
                   ].map(tab=>(
                     <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-                      className={`pb-4 text-sm transition-colors relative flex items-center gap-2 ${activeTab===tab.id?'text-zinc-100 font-medium':'text-zinc-500'}`}>
+                      className={`pb-3 sm:pb-4 text-xs sm:text-sm transition-colors relative flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-shrink-0 ${activeTab===tab.id?'text-zinc-100 font-medium':'text-zinc-500'}`}>
                       {tab.label}
-                      <span className="text-xs text-zinc-600 font-mono">{tab.count}</span>
+                      <span className="text-[10px] sm:text-xs text-zinc-600 font-mono">{tab.count}</span>
                       {activeTab===tab.id && <div className="absolute bottom-0 left-0 right-0 h-px bg-emerald-500 rounded-full"/>}
                     </button>
                   ))}
